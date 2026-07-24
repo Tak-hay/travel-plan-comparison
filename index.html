@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高機能 旅行料金・スケジュール比較シミュレーター Pro Max</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f3f5f8;
+    --header-bg:#161b28;
+    --header-bg2:#1f2740;
+    --card-bg:#ffffff;
+    --border:#e2e6ee;
+    --text:#1c2333;
+    --text-muted:#6b7385;
+    --accent:#3b5bfd;
+    --danger:#e0304a;
+    --c-flight:#2563eb;
+    --c-move:#059669;
+    --c-hotel:#d97706;
+    --c-other:#7c3aed;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);}
+  header{
+    background:linear-gradient(135deg,var(--header-bg),var(--header-bg2));
+    color:#fff;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:16px;
+    position:sticky;top:0;z-index:100;box-shadow:0 2px 10px rgba(0,0,0,.25);
+  }
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
+  header h1 small{display:block;font-size:11px;font-weight:400;color:#9aa3c0;margin-top:2px;}
+  .save-status{display:flex;align-items:center;gap:6px;font-size:12px;color:#c7cde3;margin-right:auto;}
+  .save-dot{width:9px;height:9px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 0 rgba(61,220,132,.6);}
+  .save-dot.flash{animation:pulse .6s ease-out;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(61,220,132,.7);}70%{box-shadow:0 0 0 10px rgba(61,220,132,0);}100%{box-shadow:0 0 0 0 rgba(61,220,132,0);}}
+  .header-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .header-actions button{
+    background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);
+    padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .header-actions button:hover{background:rgba(255,255,255,.18);}
+  .header-actions button.danger{border-color:rgba(224,48,74,.6);color:#ff9aa8;}
+  .header-actions button.danger:hover{background:rgba(224,48,74,.25);}
+
+  .tabs{display:flex;gap:4px;background:#fff;padding:8px 24px 0;border-bottom:1px solid var(--border);position:sticky;top:69px;z-index:90;}
+  .tab-btn{
+    background:transparent;border:none;padding:12px 20px;font-size:14px;font-weight:600;color:var(--text-muted);
+    cursor:pointer;border-bottom:3px solid transparent;
+  }
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+  .screen{padding:20px 24px 60px;max-width:1900px;margin:0 auto;}
+  .hidden{display:none !important;}
+
+  .panel{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:20px;}
+  .panel-title{font-size:14px;font-weight:700;margin:0 0 12px;color:var(--text);display:flex;align-items:center;gap:6px;}
+
+  .master-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;}
+  .master-group-title{font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px;}
+  .master-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;}
+  .master-inputs input{padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:100%;}
+
+  .add-plan-row{display:flex;justify-content:flex-end;margin-bottom:14px;}
+  #addPlanBtn{
+    background:var(--accent);color:#fff;border:none;padding:11px 18px;border-radius:8px;font-size:13px;
+    font-weight:700;cursor:pointer;box-shadow:0 3px 8px rgba(59,91,253,.3);
+  }
+  #addPlanBtn:disabled{background:#aab1c8;cursor:not-allowed;box-shadow:none;}
+
+  .plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;}
+  @media (min-width:1400px){.plan-grid{grid-template-columns:repeat(3,1fr);}}
+  @media (min-width:1850px){.plan-grid{grid-template-columns:repeat(4,1fr);}}
+
+  .plan-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 3px rgba(20,30,60,.05);}
+  .plan-card-header{display:flex;gap:8px;align-items:center;}
+  .plan-name{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;}
+  .btn-icon{background:#fff;border:1px solid var(--border);border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:14px;}
+  .btn-icon.danger{color:var(--danger);border-color:#f3c6cd;}
+  .btn-icon.small{width:26px;height:26px;font-size:12px;}
+  .plan-meta-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;}
+  .plan-meta-row label{color:var(--text-muted);}
+  .plan-meta-row select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;flex:1;min-width:110px;}
+  .plan-total{font-size:13px;font-weight:700;color:var(--accent);text-align:right;}
+
+  .items-list{display:flex;flex-direction:column;gap:10px;}
+  .item-card{border:1px solid var(--border);border-left:5px solid #ccc;border-radius:8px;padding:10px;background:#fafbfd;}
+  .item-card.cat-flight{border-left-color:var(--c-flight);}
+  .item-card.cat-move{border-left-color:var(--c-move);}
+  .item-card.cat-hotel{border-left-color:var(--c-hotel);}
+  .item-card.cat-other{border-left-color:var(--c-other);}
+  .item-row-top{display:flex;gap:6px;margin-bottom:8px;}
+  .item-row-top select{flex:1.3;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;}
+  .item-row-top .amount-input{flex:1;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:0;}
+  .item-detail{display:flex;flex-direction:column;gap:6px;}
+  .field-row{display:flex;align-items:center;gap:6px;font-size:11.5px;}
+  .field-row label{width:84px;flex-shrink:0;color:var(--text-muted);}
+  .field-row input,.field-row select{flex:1;padding:6px 7px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;min-width:0;}
+  .leg-box{border:1px dashed var(--border);border-radius:6px;padding:8px;background:#fff;}
+  .leg-label{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px;}
+  .leg-sub-title{font-size:10.5px;font-weight:700;color:var(--text-muted);margin:4px 0 2px;}
+  .item-card textarea{width:100%;min-height:40px;padding:6px 7px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;font-family:inherit;resize:vertical;}
+  .btn-add-item{align-self:flex-start;background:#eef1fb;color:var(--accent);border:1px solid #cdd6f7;padding:7px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;}
+
+  .empty-msg{padding:40px 20px;text-align:center;color:var(--text-muted);font-size:13px;grid-column:1/-1;}
+
+  .filter-zone{display:flex;flex-wrap:wrap;gap:20px;align-items:center;}
+  .filter-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
+  .filter-item select{padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:160px;}
+
+  .chart-wrap{position:relative;height:380px;}
+
+  .detail-table-scroll,.timeline-scroll{overflow-x:auto;}
+  table.detail-table,table.timeline-table{border-collapse:collapse;width:100%;font-size:12px;}
+  table.detail-table th,table.detail-table td,table.timeline-table th,table.timeline-table td{
+    border:1px solid var(--border);padding:8px 10px;vertical-align:top;text-align:left;white-space:nowrap;
+  }
+  table.detail-table td{white-space:normal;min-width:220px;}
+  table.detail-table thead th{background:#f5f6fa;position:sticky;top:0;}
+  .row-label-col{background:#f5f6fa;font-weight:700;white-space:nowrap;min-width:120px !important;position:sticky;left:0;}
+  .total-row td{font-weight:700;}
+  .total-cell{color:var(--danger);font-size:20px;font-weight:800;}
+  ul.detail-list{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:8px;}
+  ul.detail-list li{line-height:1.5;}
+  ul.detail-list li.muted{color:var(--text-muted);list-style:none;margin-left:-16px;}
+  .li-icon{margin-right:2px;}
+
+  .timeline-range{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:14px;font-size:13px;font-weight:600;}
+  .timeline-range input[type=date]{padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-size:13px;}
+  table.timeline-table thead th{background:#f5f6fa;position:sticky;top:0;z-index:2;}
+  .tl-time-col{background:#f5f6fa;position:sticky;left:0;z-index:1;font-weight:700;min-width:150px;}
+  .tl-cell{min-width:140px;padding:2px !important;}
+  .tl-block{padding:4px 6px;border-radius:4px;font-size:10.5px;line-height:1.3;color:#1c2333;min-height:18px;}
+  .cell-flight{background:#2563eb26;border-left:3px solid var(--c-flight);}
+  .cell-move{background:#05966926;border-left:3px solid var(--c-move);}
+  .cell-hotel{background:#d9770626;border-left:3px solid var(--c-hotel);}
+  .cell-other{background:#7c3aed26;border-left:3px solid var(--c-other);}
+
+  .legend-row{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 4px;font-size:11.5px;color:var(--text-muted);}
+  .legend-chip{display:inline-flex;align-items:center;gap:5px;}
+  .legend-swatch{width:11px;height:11px;border-radius:3px;display:inline-block;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>✈️ 旅行料金・スケジュール比較シミュレーター <span style="color:#ffb35c;">Pro Max</span><small>複数プランを日程・行先で横断比較</small></h1>
+  <div class="save-status"><span class="save-dot" id="saveDot"></span><span id="saveText">未保存</span></div>
+  <div class="header-actions">
+    <button onclick="exportData()">📤 エクスポート</button>
+    <button onclick="triggerImport()">📥 インポート</button>
+    <input type="file" id="importFile" accept="application/json" style="display:none" onchange="handleImport(event)">
+    <button class="danger" onclick="resetAll()">🗑️ 全リセット</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" id="tab-input" onclick="showTab('input')">📝 プラン入力</button>
+  <button class="tab-btn" id="tab-compare" onclick="showTab('compare')">📊 比較結果を見る</button>
+</div>
+
+<!-- ===================== 入力画面 ===================== -->
+<div class="screen" id="screen-input">
+
+  <div class="panel">
+    <div class="panel-title">⚙️ グループ軸のマスター設定</div>
+    <div class="master-row" id="masterArea"></div>
+  </div>
+
+  <div class="add-plan-row">
+    <button id="addPlanBtn" onclick="addPlan()">＋ 新しい比較プランを追加</button>
+  </div>
+
+  <div class="plan-grid" id="planGrid"></div>
+</div>
+
+<!-- ===================== 比較結果画面 ===================== -->
+<div class="screen hidden" id="screen-compare">
+
+  <div class="panel">
+    <div class="panel-title">🔀 掛け合わせ比較セレクター</div>
+    <div class="filter-zone">
+      <div class="filter-item">📅 対象の日程グループ
+        <select id="filterSchedule" onchange="onFilterChange()"><option value="all">すべて</option></select>
+      </div>
+      <div class="filter-item">🗺️ 対象の行先グループ
+        <select id="filterDestination" onchange="onFilterChange()"><option value="all">すべて</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">① 金額内訳比較グラフ</div>
+    <div class="legend-row">
+      <span class="legend-chip"><span class="legend-swatch" style="background:#2563eb"></span>航空券代</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#059669"></span>その他移動費</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#d97706"></span>ホテル代</span>
+      <span class="legend-chip"><span class="legend-swatch" style="background:#7c3aed"></span>その他費用</span>
+    </div>
+    <div class="chart-wrap"><canvas id="costChart"></canvas></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">② 料金・内容詳細比較表</div>
+    <div class="detail-table-scroll" id="detailTableWrap"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">③ 旅程スケジュール時間表（タイムライン）</div>
+    <div class="timeline-range">
+      📅 表示期間：
+      <span>開始日 <input type="date" id="tlStart" onchange="onTimelineDateChange()"></span>
+      <span>終了日 <input type="date" id="tlEnd" onchange="onTimelineDateChange()"></span>
+    </div>
+    <div class="timeline-scroll" id="timelineTableWrap"></div>
+  </div>
+
+</div>
+
+<script>
+/* ========================================================================
+   State & Constants
+   ======================================================================== */
+const STORAGE_KEY = 'travel_sim_pro_max_v1';
+let state;
+let currentTab = 'input';
+let timelineUserSet = false;
+let chartInstance = null;
+let saveTimer = null;
+
+const TYPE_OPTIONS = [
+  {v:'flight', label:'✈️ 航空券'},
+  {v:'train',  label:'🚂 電車'},
+  {v:'ship',   label:'🚢 船'},
+  {v:'hotel',  label:'🏨 ホテル'},
+  {v:'other',  label:'✨ その他'}
+];
+
+function defaultState(){
+  return {
+    master:{
+      schedules:['日程A','日程B','日程C','日程D','日程E'],
+      destinations:['行先X','行先Y','行先Z','行先W','行先V']
+    },
+    plans:[]
+  };
+}
+
+/* ========================================================================
+   Utilities
+   ======================================================================== */
+function escapeHtml(str){
+  if(str===undefined||str===null) return '';
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function genId(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function getCategory(type){
+  if(type==='flight') return 'flight';
+  if(type==='train'||type==='ship') return 'move';
+  if(type==='hotel') return 'hotel';
+  return 'other';
+}
+function typeIcon(type){ return {flight:'✈️',train:'🚂',ship:'🚢',hotel:'🏨',other:'✨'}[type]||''; }
+function sumTotals(t){ return (t.flight||0)+(t.move||0)+(t.hotel||0)+(t.other||0); }
+function computePlanTotals(plan){
+  const t={flight:0,move:0,hotel:0,other:0};
+  plan.items.forEach(it=>{ t[getCategory(it.type)] += Number(it.amount)||0; });
+  return t;
+}
+function newTransportLeg(){
+  return {
+    connection:'direct',
+    direct:{depPlace:'',depDatetime:'',arrDatetime:''},
+    transit:{
+      leg1:{depPlace:'',depDatetime:'',transitPlace:'',transitArrDatetime:''},
+      leg2:{transitDepDatetime:'',arrDatetime:''}
+    }
+  };
+}
+function createItem(type){
+  return {
+    id:genId(), type, amount:0, note:'',
+    tripType:'oneway', company:'', destination:'',
+    outbound:newTransportLeg(), return:null,
+    hotelName:'', checkin:'', checkout:'',
+    content:'', startDatetime:'', endDatetime:''
+  };
+}
+function findPlan(id){ return state.plans.find(p=>p.id===id); }
+function findItem(planId,itemId){ const p=findPlan(planId); return p && p.items.find(i=>i.id===itemId); }
+function setNested(obj,path,value){
+  const parts=path.split('.');
+  let cur=obj;
+  for(let i=0;i<parts.length-1;i++) cur=cur[parts[i]];
+  cur[parts[parts.length-1]]=value;
+}
+function toLocalInputString(d){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function addHour(dtStr){
+  const d=new Date(dtStr); if(isNaN(d)) return dtStr;
+  d.setHours(d.getHours()+1);
+  return toLocalInputString(d);
+}
+
+/* ========================================================================
+   Persistence
+   ======================================================================== */
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      state = JSON.parse(raw);
+      if(!state.master) state.master = defaultState().master;
+      if(!state.plans) state.plans = [];
+    } else {
+      state = defaultState();
+    }
+  }catch(e){ state = defaultState(); }
+}
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    flashSaveStatus();
+  }, 250);
+}
+function flashSaveStatus(){
+  const dot=document.getElementById('saveDot');
+  const txt=document.getElementById('saveText');
+  txt.textContent = '保存済み ' + new Date().toLocaleTimeString('ja-JP');
+  dot.classList.remove('flash');
+  void dot.offsetWidth;
+  dot.classList.add('flash');
+}
+function exportData(){
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'travel_plans_max.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function triggerImport(){ document.getElementById('importFile').click(); }
+function handleImport(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data || !data.master || !data.plans) throw new Error('invalid');
+      state = data;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      timelineUserSet = false;
+      renderMaster(); renderPlans(); renderFilterSelectors();
+      if(currentTab==='compare') renderCompareTab();
+      flashSaveStatus();
+      alert('データを読み込みました。');
+    }catch(err){
+      alert('ファイルの読み込みに失敗しました。正しいJSONファイルか確認してください。');
+    }
+    evt.target.value = '';
+  };
+  reader.readAsText(file);
+}
+function resetAll(){
+  if(!confirm('全データを削除して初期化します。よろしいですか？この操作は取り消せません。')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = defaultState();
+  timelineUserSet = false;
+  renderMaster(); renderPlans(); renderFilterSelectors();
+  const s=document.getElementById('tlStart'), en=document.getElementById('tlEnd');
+  if(s) s.value=''; if(en) en.value='';
+  if(currentTab==='compare') renderCompareTab();
+  flashSaveStatus();
+}
+
+/* ========================================================================
+   Tabs
+   ======================================================================== */
+function showTab(tab){
+  currentTab = tab;
+  document.getElementById('tab-input').classList.toggle('active', tab==='input');
+  document.getElementById('tab-compare').classList.toggle('active', tab==='compare');
+  document.getElementById('screen-input').classList.toggle('hidden', tab!=='input');
+  document.getElementById('screen-compare').classList.toggle('hidden', tab!=='compare');
+  if(tab==='compare'){ renderFilterSelectors(); renderCompareTab(); }
+}
+function maybeRefreshCompare(){ if(currentTab==='compare') renderCompareTab(); }
+
+/* ========================================================================
+   Master
+   ======================================================================== */
+function renderMaster(){
+  const wrap = document.getElementById('masterArea');
+  wrap.innerHTML = `
+    <div>
+      <div class="master-group-title">📅 日程グループ（最大5）</div>
+      <div class="master-inputs">
+        ${state.master.schedules.map((s,i)=>`<input type="text" value="${escapeHtml(s)}" placeholder="日程${i+1}" oninput="updateMasterLabel('schedules',${i}, this.value)">`).join('')}
+      </div>
+    </div>
+    <div>
+      <div class="master-group-title">🗺️ 行先グループ（最大5）</div>
+      <div class="master-inputs">
+        ${state.master.destinations.map((s,i)=>`<input type="text" value="${escapeHtml(s)}" placeholder="行先${i+1}" oninput="updateMasterLabel('destinations',${i}, this.value)">`).join('')}
+      </div>
+    </div>`;
+}
+function updateMasterLabel(kind, idx, value){
+  state.master[kind][idx] = value;
+  renderPlans();
+  renderFilterSelectors();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+
+/* ========================================================================
+   Plans / Cards
+   ======================================================================== */
+function renderPlans(){
+  const grid = document.getElementById('planGrid');
+  if(!state.plans.length){
+    grid.innerHTML = '<div class="empty-msg">プランがまだありません。「＋ 新しい比較プランを追加」から開始してください。</div>';
+    updateAddButtonState();
+    return;
+  }
+  grid.innerHTML = state.plans.map(p=>renderPlanCard(p)).join('');
+  updateAddButtonState();
+}
+function renderPlanCard(plan){
+  const totals = computePlanTotals(plan);
+  return `<div class="plan-card" id="plan-${plan.id}">
+    <div class="plan-card-header">
+      <input type="text" class="plan-name" placeholder="プラン名" value="${escapeHtml(plan.name)}" oninput="updatePlanField('${plan.id}','name', this.value)">
+      <button class="btn-icon danger" onclick="removePlan('${plan.id}')" title="このプランを削除">🗑️</button>
+    </div>
+    <div class="plan-meta-row">
+      <label>📅日程</label>
+      <select onchange="updatePlanField('${plan.id}','scheduleGroup', this.value)">
+        <option value="">未設定</option>
+        ${state.master.schedules.map((s,i)=> s.trim() ? `<option value="${i}" ${String(plan.scheduleGroup)===String(i)?'selected':''}>${escapeHtml(s)}</option>` : '').join('')}
+      </select>
+      <label>🗺️行先</label>
+      <select onchange="updatePlanField('${plan.id}','destinationGroup', this.value)">
+        <option value="">未設定</option>
+        ${state.master.destinations.map((s,i)=> s.trim() ? `<option value="${i}" ${String(plan.destinationGroup)===String(i)?'selected':''}>${escapeHtml(s)}</option>` : '').join('')}
+      </select>
+    </div>
+    <div class="plan-total">小計: ¥${sumTotals(totals).toLocaleString()}</div>
+    <div class="items-list">
+      ${plan.items.map(it=>renderItem(plan,it)).join('') || '<div style="font-size:12px;color:#9aa1b5;">項目がありません。下のボタンから追加してください。</div>'}
+    </div>
+    <button class="btn-add-item" onclick="addItem('${plan.id}')">＋ 項目を追加</button>
+  </div>`;
+}
+function updatePlanField(planId, field, value){
+  const p = findPlan(planId); if(!p) return;
+  p[field] = value;
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function addPlan(){
+  if(state.plans.length>=25){
+    alert('プランは最大25個まで追加できます。これ以上は追加できません。');
+    return;
+  }
+  const idx = state.plans.length+1;
+  state.plans.push({id:genId(), name:`プラン${idx}`, scheduleGroup:'', destinationGroup:'', items:[]});
+  renderPlans();
+  scheduleSave();
+}
+function removePlan(id){
+  if(!confirm('このプランを削除しますか？')) return;
+  state.plans = state.plans.filter(p=>p.id!==id);
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function updateAddButtonState(){
+  const btn = document.getElementById('addPlanBtn');
+  if(!btn) return;
+  if(state.plans.length>=25){
+    btn.disabled = true;
+    btn.textContent = '上限(25個)に達しました';
+  } else {
+    btn.disabled = false;
+    btn.textContent = '＋ 新しい比較プランを追加';
+  }
+}
+
+/* ========================================================================
+   Items
+   ======================================================================== */
+function renderItem(plan, item){
+  const cat = getCategory(item.type);
+  return `<div class="item-card cat-${cat}" id="item-${item.id}">
+    <div class="item-row-top">
+      <select onchange="changeItemType('${plan.id}','${item.id}', this.value)">
+        ${TYPE_OPTIONS.map(o=>`<option value="${o.v}" ${item.type===o.v?'selected':''}>${o.label}</option>`).join('')}
+      </select>
+      <input type="number" class="amount-input" placeholder="金額(円)" value="${item.amount||0}" oninput="updateField('${plan.id}','${item.id}','amount', this.value)">
+      <button class="btn-icon danger small" onclick="removeItem('${plan.id}','${item.id}')" title="削除">✕</button>
+    </div>
+    <div class="item-detail">${renderItemDetail(plan,item)}</div>
+    <textarea placeholder="備考" oninput="updateField('${plan.id}','${item.id}','note', this.value)">${escapeHtml(item.note)}</textarea>
+  </div>`;
+}
+function fieldRow(label, inputHtml){ return `<div class="field-row"><label>${label}</label>${inputHtml}</div>`; }
+function textInput(planId,itemId,path,val){ return `<input type="text" value="${escapeHtml(val)}" oninput="updateField('${planId}','${itemId}','${path}', this.value)">`; }
+function dtInput(planId,itemId,path,val){ return `<input type="datetime-local" value="${escapeHtml(val)}" oninput="updateField('${planId}','${itemId}','${path}', this.value)">`; }
+
+function renderItemDetail(plan, item){
+  if(item.type==='flight'||item.type==='train'||item.type==='ship'){
+    let html = `<div class="field-row"><label>片道/往復</label>
+      <select onchange="changeTripType('${plan.id}','${item.id}', this.value)">
+        <option value="oneway" ${item.tripType==='oneway'?'selected':''}>片道</option>
+        <option value="roundtrip" ${item.tripType==='roundtrip'?'selected':''}>往復</option>
+      </select></div>`;
+    html += fieldRow('会社名', textInput(plan.id,item.id,'company',item.company));
+    html += renderLeg(plan,item,'outbound','往路');
+    if(item.tripType==='roundtrip') html += renderLeg(plan,item,'return','復路');
+    html += fieldRow('最終目的地', textInput(plan.id,item.id,'destination',item.destination));
+    return html;
+  }
+  if(item.type==='hotel'){
+    let html = fieldRow('ホテル名', textInput(plan.id,item.id,'hotelName',item.hotelName));
+    html += fieldRow('チェックイン', dtInput(plan.id,item.id,'checkin',item.checkin));
+    html += fieldRow('チェックアウト', dtInput(plan.id,item.id,'checkout',item.checkout));
+    return html;
+  }
+  // other
+  let html = fieldRow('内容', textInput(plan.id,item.id,'content',item.content));
+  html += fieldRow('開始日時', dtInput(plan.id,item.id,'startDatetime',item.startDatetime));
+  html += fieldRow('終了日時(任意)', dtInput(plan.id,item.id,'endDatetime',item.endDatetime));
+  return html;
+}
+function renderLeg(plan, item, dir, label){
+  const sec = item[dir];
+  if(!sec) return '';
+  let html = `<div class="leg-box"><div class="leg-label">${label}</div>
+    <div class="field-row"><label>直行/乗継</label>
+    <select onchange="setConnection('${plan.id}','${item.id}','${dir}', this.value)">
+      <option value="direct" ${sec.connection==='direct'?'selected':''}>直行</option>
+      <option value="transit" ${sec.connection==='transit'?'selected':''}>乗継(経由)</option>
+    </select></div>`;
+  if(sec.connection==='direct'){
+    html += fieldRow('出発地', textInput(plan.id,item.id,`${dir}.direct.depPlace`, sec.direct.depPlace));
+    html += fieldRow('出発日時', dtInput(plan.id,item.id,`${dir}.direct.depDatetime`, sec.direct.depDatetime));
+    html += fieldRow('到着日時', dtInput(plan.id,item.id,`${dir}.direct.arrDatetime`, sec.direct.arrDatetime));
+  } else {
+    html += `<div class="leg-sub-title">1便目</div>`;
+    html += fieldRow('出発地', textInput(plan.id,item.id,`${dir}.transit.leg1.depPlace`, sec.transit.leg1.depPlace));
+    html += fieldRow('出発日時', dtInput(plan.id,item.id,`${dir}.transit.leg1.depDatetime`, sec.transit.leg1.depDatetime));
+    html += fieldRow('乗継地', textInput(plan.id,item.id,`${dir}.transit.leg1.transitPlace`, sec.transit.leg1.transitPlace));
+    html += fieldRow('乗継着日時', dtInput(plan.id,item.id,`${dir}.transit.leg1.transitArrDatetime`, sec.transit.leg1.transitArrDatetime));
+    html += `<div class="leg-sub-title">2便目</div>`;
+    html += fieldRow('乗継発日時', dtInput(plan.id,item.id,`${dir}.transit.leg2.transitDepDatetime`, sec.transit.leg2.transitDepDatetime));
+    html += fieldRow('最終到着日時', dtInput(plan.id,item.id,`${dir}.transit.leg2.arrDatetime`, sec.transit.leg2.arrDatetime));
+  }
+  html += `</div>`;
+  return html;
+}
+
+function updateField(planId, itemId, path, value){
+  const item = findItem(planId,itemId);
+  if(!item) return;
+  if(path==='amount') value = parseFloat(value)||0;
+  setNested(item, path, value);
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function changeItemType(planId, itemId, newType){
+  const p = findPlan(planId); if(!p) return;
+  const idx = p.items.findIndex(i=>i.id===itemId); if(idx<0) return;
+  const old = p.items[idx];
+  const fresh = createItem(newType);
+  fresh.id = old.id; fresh.amount = old.amount; fresh.note = old.note;
+  p.items[idx] = fresh;
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function changeTripType(planId, itemId, val){
+  const item = findItem(planId,itemId); if(!item) return;
+  item.tripType = val;
+  if(val==='roundtrip' && !item.return) item.return = newTransportLeg();
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function setConnection(planId, itemId, dir, val){
+  const item = findItem(planId,itemId); if(!item) return;
+  item[dir].connection = val;
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function addItem(planId){
+  const p = findPlan(planId); if(!p) return;
+  p.items.push(createItem('flight'));
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function removeItem(planId, itemId){
+  const p = findPlan(planId); if(!p) return;
+  p.items = p.items.filter(i=>i.id!==itemId);
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+
+/* ========================================================================
+   Compare screen: filters
+   ======================================================================== */
+function renderFilterSelectors(){
+  const schedSel = document.getElementById('filterSchedule');
+  const destSel = document.getElementById('filterDestination');
+  const curSched = schedSel.value, curDest = destSel.value;
+  schedSel.innerHTML = '<option value="all">すべて</option>' +
+    state.master.schedules.map((s,i)=> s.trim() ? `<option value="${i}">${escapeHtml(s)}</option>` : '').join('');
+  destSel.innerHTML = '<option value="all">すべて</option>' +
+    state.master.destinations.map((s,i)=> s.trim() ? `<option value="${i}">${escapeHtml(s)}</option>` : '').join('');
+  schedSel.value = [...schedSel.options].some(o=>o.value===curSched) ? curSched : 'all';
+  destSel.value  = [...destSel.options].some(o=>o.value===curDest) ? curDest : 'all';
+}
+function getFilteredPlans(){
+  const fs = document.getElementById('filterSchedule').value;
+  const fd = document.getElementById('filterDestination').value;
+  return state.plans.filter(p =>
+    (fs==='all' || String(p.scheduleGroup)===fs) &&
+    (fd==='all' || String(p.destinationGroup)===fd)
+  );
+}
+function onFilterChange(){ timelineUserSet = false; renderCompareTab(); }
+function onTimelineDateChange(){ timelineUserSet = true; renderCompareTab(); }
+
+/* ========================================================================
+   Events extraction (for chart-independent timeline)
+   ======================================================================== */
+function legEvents(sec, labelBase, cat){
+  if(!sec) return [];
+  const evs = [];
+  if(sec.connection==='direct'){
+    if(sec.direct.depDatetime && sec.direct.arrDatetime){
+      evs.push({start:sec.direct.depDatetime, end:sec.direct.arrDatetime, label:`${labelBase}${sec.direct.depPlace?'('+sec.direct.depPlace+')':''}`, cat});
+    }
+  } else {
+    if(sec.transit.leg1.depDatetime && sec.transit.leg1.transitArrDatetime){
+      evs.push({start:sec.transit.leg1.depDatetime, end:sec.transit.leg1.transitArrDatetime, label:`${labelBase} 1便目`, cat});
+    }
+    if(sec.transit.leg2.transitDepDatetime && sec.transit.leg2.arrDatetime){
+      evs.push({start:sec.transit.leg2.transitDepDatetime, end:sec.transit.leg2.arrDatetime, label:`${labelBase} 2便目`, cat});
+    }
+  }
+  return evs;
+}
+function getItemEvents(item){
+  const cat = getCategory(item.type);
+  let events = [];
+  if(item.type==='flight'||item.type==='train'||item.type==='ship'){
+    const icon = typeIcon(item.type);
+    events = events.concat(legEvents(item.outbound, `${icon}${item.company?(' '+item.company):''} 往路`, cat));
+    if(item.tripType==='roundtrip' && item.return){
+      events = events.concat(legEvents(item.return, `${icon}${item.company?(' '+item.company):''} 復路`, cat));
+    }
+  } else if(item.type==='hotel'){
+    if(item.checkin && item.checkout){
+      events.push({start:item.checkin, end:item.checkout, label:`🏨 ${item.hotelName||'ホテル'}`, cat});
+    }
+  } else if(item.type==='other'){
+    if(item.startDatetime){
+      const end = (item.endDatetime && item.endDatetime > item.startDatetime) ? item.endDatetime : addHour(item.startDatetime);
+      events.push({start:item.startDatetime, end, label:`✨ ${item.content||'その他'}`, cat});
+    }
+  }
+  return events.filter(e=>e.start && e.end);
+}
+
+/* ========================================================================
+   Chart
+   ======================================================================== */
+function renderChart(filteredPlans){
+  const canvas = document.getElementById('costChart');
+  if(chartInstance){ chartInstance.destroy(); chartInstance=null; }
+  if(!filteredPlans.length) return;
+  const ctx = canvas.getContext('2d');
+  const labels = filteredPlans.map(p=>p.name||'(無題プラン)');
+  const totals = filteredPlans.map(p=>computePlanTotals(p));
+  const categories = [
+    {key:'flight', label:'航空券代', color:'#2563eb'},
+    {key:'move',   label:'その他移動費', color:'#059669'},
+    {key:'hotel',  label:'ホテル代', color:'#d97706'},
+    {key:'other',  label:'その他費用', color:'#7c3aed'}
+  ];
+  const datasets = categories.map(c=>({label:c.label, data: totals.map(t=>t[c.key]), backgroundColor:c.color}));
+  chartInstance = new Chart(ctx, {
+    type:'bar',
+    data:{labels, datasets},
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom', labels:{boxWidth:14}},
+        tooltip:{
+          callbacks:{
+            footer:(items)=>{ let sum=0; items.forEach(i=>sum+=i.parsed.y); return '合計: ¥'+sum.toLocaleString(); }
+          }
+        }
+      },
+      scales:{
+        x:{stacked:true},
+        y:{stacked:true, ticks:{callback:v=>'¥'+Number(v).toLocaleString()}}
+      }
+    }
+  });
+}
+
+/* ========================================================================
+   Detail table
+   ======================================================================== */
+function itemDetailLines(item){
+  const lines = [];
+  if(item.type==='flight'||item.type==='train'||item.type==='ship'){
+    lines.push(`${item.tripType==='roundtrip'?'往復':'片道'} / ${item.company||'(会社名未設定)'}`);
+    lines.push(...legLines(item.outbound,'往路'));
+    if(item.tripType==='roundtrip' && item.return) lines.push(...legLines(item.return,'復路'));
+    lines.push(`最終目的地: ${item.destination||'-'}`);
+  } else if(item.type==='hotel'){
+    lines.push(`${item.hotelName||'(ホテル名未設定)'}`);
+    lines.push(`IN:${item.checkin||'-'} / OUT:${item.checkout||'-'}`);
+  } else {
+    lines.push(`${item.content||'(内容未設定)'}`);
+    lines.push(`${item.startDatetime||'-'} 〜 ${item.endDatetime||'(未定)'}`);
+  }
+  if(item.note) lines.push(`備考: ${item.note}`);
+  return lines;
+}
+function legLines(sec, label){
+  if(!sec) return [];
+  if(sec.connection==='direct'){
+    return [`${label}(直行): ${sec.direct.depPlace||'-'} ${sec.direct.depDatetime||'-'} → ${sec.direct.arrDatetime||'-'}`];
+  }
+  return [
+    `${label}(乗継)1便目: ${sec.transit.leg1.depPlace||'-'} ${sec.transit.leg1.depDatetime||'-'} → 経由地(${sec.transit.leg1.transitPlace||'-'}) ${sec.transit.leg1.transitArrDatetime||'-'}`,
+    `${label}(乗継)2便目: 経由地発 ${sec.transit.leg2.transitDepDatetime||'-'} → 到着 ${sec.transit.leg2.arrDatetime||'-'}`
+  ];
+}
+function renderTable(filteredPlans){
+  const wrap = document.getElementById('detailTableWrap');
+  if(!filteredPlans.length){
+    wrap.innerHTML = '<div class="empty-msg">対象のプランがありません。日程・行先の絞り込み条件をご確認ください。</div>';
+    return;
+  }
+  let html = '<table class="detail-table"><thead><tr><th class="row-label-col">項目</th>';
+  filteredPlans.forEach(p=> html += `<th>${escapeHtml(p.name)||'(無題)'}</th>`);
+  html += '</tr></thead><tbody>';
+  html += '<tr class="total-row"><td class="row-label-col">合計金額</td>';
+  filteredPlans.forEach(p=>{ const t=computePlanTotals(p); html += `<td class="total-cell">¥${sumTotals(t).toLocaleString()}</td>`; });
+  html += '</tr>';
+  [['✈️ 航空券代','flight'],['🚈 その他移動費','move'],['🏨 ホテル代','hotel'],['✨ その他費用','other']].forEach(([label,key])=>{
+    html += `<tr><td class="row-label-col">${label}</td>`;
+    filteredPlans.forEach(p=>{ const t=computePlanTotals(p); html += `<td>¥${(t[key]||0).toLocaleString()}</td>`; });
+    html += '</tr>';
+  });
+  html += '<tr><td class="row-label-col">詳細</td>';
+  filteredPlans.forEach(p=>{
+    html += '<td><ul class="detail-list">';
+    if(!p.items.length){ html += '<li class="muted">項目未登録</li>'; }
+    p.items.forEach(it=>{
+      const lines = itemDetailLines(it);
+      html += `<li><span class="li-icon">${typeIcon(it.type)}</span> ¥${(Number(it.amount)||0).toLocaleString()}<br>${lines.map(l=>escapeHtml(l)).join('<br>')}</li>`;
+    });
+    html += '</ul></td>';
+  });
+  html += '</tr></tbody></table>';
+  wrap.innerHTML = html;
+}
+
+/* ========================================================================
+   Timeline
+   ======================================================================== */
+function computeDefaultRange(events){
+  if(!events.length){
+    const today = toLocalInputString(new Date()).slice(0,10);
+    return {min:today, max:today};
+  }
+  let minD=null, maxD=null;
+  events.forEach(e=>{
+    const s = new Date(e.start), en = new Date(e.end);
+    if(!minD || s<minD) minD = s;
+    if(!maxD || en>maxD) maxD = en;
+  });
+  const pad=n=>String(n).padStart(2,'0');
+  const fmt=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return {min:fmt(minD), max:fmt(maxD)};
+}
+function buildTimelineRows(filteredPlans, planEventsMap, startVal, endVal){
+  const rows = [];
+  if(!startVal || !endVal) return rows;
+  let cur = new Date(startVal+'T00:00:00');
+  const endBound = new Date(endVal+'T00:00:00'); endBound.setDate(endBound.getDate()+1);
+  if(isNaN(cur) || isNaN(endBound)) return rows;
+  let guard = 0;
+  while(cur < endBound && guard < 24*370){
+    guard++;
+    const hour = cur.getHours();
+    const slotStart = new Date(cur);
+    const slotEnd = new Date(cur); slotEnd.setHours(slotEnd.getHours()+1);
+    const cells = {};
+    let anyEvent = false;
+    filteredPlans.forEach(p=>{
+      const evs = (planEventsMap.get(p.id)||[]).filter(e=> e.startD < slotEnd && e.endD > slotStart);
+      if(evs.length) anyEvent = true;
+      cells[p.id] = evs;
+    });
+    if(!(hour>=1 && hour<=5 && !anyEvent)){
+      rows.push({dt:new Date(cur), cells});
+    }
+    cur.setHours(cur.getHours()+1);
+  }
+  return rows;
+}
+function renderTimelineTable(filteredPlans, rows){
+  const container = document.getElementById('timelineTableWrap');
+  if(!filteredPlans.length){ container.innerHTML = '<div class="empty-msg">対象のプランがありません。</div>'; return; }
+  if(!rows.length){ container.innerHTML = '<div class="empty-msg">この期間に表示できる予定がありません。</div>'; return; }
+  const pad=n=>String(n).padStart(2,'0');
+  let html = '<table class="timeline-table"><thead><tr><th class="tl-time-col">日時</th>';
+  filteredPlans.forEach(p=> html += `<th>${escapeHtml(p.name)||'(無題)'}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(row=>{
+    const d = row.dt;
+    html += `<tr><td class="tl-time-col">${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:00</td>`;
+    filteredPlans.forEach(p=>{
+      const evs = row.cells[p.id]||[];
+      if(!evs.length){ html += '<td class="tl-cell"></td>'; return; }
+      const inner = evs.map(e=>{
+        const isStart = e.startD.getFullYear()===d.getFullYear() && e.startD.getMonth()===d.getMonth() &&
+                         e.startD.getDate()===d.getDate() && e.startD.getHours()===d.getHours();
+        return `<div class="tl-block cell-${e.cat}">${isStart?escapeHtml(e.label):''}</div>`;
+      }).join('');
+      html += `<td class="tl-cell">${inner}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+/* ========================================================================
+   Compare tab orchestration
+   ======================================================================== */
+function renderCompareTab(){
+  const filtered = getFilteredPlans();
+  renderChart(filtered);
+  renderTable(filtered);
+
+  const allEvents = [];
+  filtered.forEach(p=> p.items.forEach(it=> getItemEvents(it).forEach(e=>allEvents.push(e))));
+
+  const startInput = document.getElementById('tlStart');
+  const endInput = document.getElementById('tlEnd');
+  if(!timelineUserSet || !startInput.value || !endInput.value){
+    const range = computeDefaultRange(allEvents);
+    startInput.value = range.min;
+    endInput.value = range.max;
+  }
+
+  const planEventsMap = new Map();
+  filtered.forEach(p=>{
+    const evs = [];
+    p.items.forEach(it=> getItemEvents(it).forEach(e=>{
+      const sD = new Date(e.start), eD = new Date(e.end);
+      if(!isNaN(sD) && !isNaN(eD)) evs.push({...e, startD:sD, endD:eD});
+    }));
+    planEventsMap.set(p.id, evs);
+  });
+
+  const rows = buildTimelineRows(filtered, planEventsMap, startInput.value, endInput.value);
+  renderTimelineTable(filtered, rows);
+}
+
+/* ========================================================================
+   Init
+   ======================================================================== */
+window.addEventListener('DOMContentLoaded', ()=>{
+  loadState();
+  renderMaster();
+  renderPlans();
+  renderFilterSelectors();
+  showTab('input');
+});
+</script>
+</body>
+</html>
