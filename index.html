@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>高機能 旅行料金・スケジュール比較シミュレーター Pro Max</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{
     --bg:#f3f5f8;
@@ -16,6 +17,7 @@
     --text-muted:#6b7385;
     --accent:#3b5bfd;
     --danger:#e0304a;
+    --good:#16a34a;
     --c-flight:#2563eb;
     --c-move:#059669;
     --c-hotel:#d97706;
@@ -76,12 +78,13 @@
   .plan-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 3px rgba(20,30,60,.05);}
   .plan-card-header{display:flex;gap:8px;align-items:center;}
   .plan-name{flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;}
-  .btn-icon{background:#fff;border:1px solid var(--border);border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:14px;}
+  .btn-icon{background:#fff;border:1px solid var(--border);border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:14px;flex-shrink:0;}
   .btn-icon.danger{color:var(--danger);border-color:#f3c6cd;}
   .btn-icon.small{width:26px;height:26px;font-size:12px;}
   .plan-meta-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;}
-  .plan-meta-row label{color:var(--text-muted);}
+  .plan-meta-row label{color:var(--text-muted);white-space:nowrap;}
   .plan-meta-row select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;flex:1;min-width:110px;}
+  .plan-meta-row input[type=number]{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:64px;}
   .plan-total{font-size:13px;font-weight:700;color:var(--accent);text-align:right;}
 
   .items-list{display:flex;flex-direction:column;gap:10px;}
@@ -90,9 +93,10 @@
   .item-card.cat-move{border-left-color:var(--c-move);}
   .item-card.cat-hotel{border-left-color:var(--c-hotel);}
   .item-card.cat-other{border-left-color:var(--c-other);}
-  .item-row-top{display:flex;gap:6px;margin-bottom:8px;}
-  .item-row-top select{flex:1.3;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;}
-  .item-row-top .amount-input{flex:1;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:0;}
+  .item-row-top{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;align-items:center;}
+  .item-row-top select.type-select{flex:1.4 1 100px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:100px;}
+  .item-row-top .amount-input{flex:1 1 70px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:12px;min-width:0;}
+  .item-row-top .currency-select{flex:0 0 66px;padding:6px 2px;border:1px solid var(--border);border-radius:6px;font-size:11px;}
   .item-detail{display:flex;flex-direction:column;gap:6px;}
   .field-row{display:flex;align-items:center;gap:6px;font-size:11.5px;}
   .field-row label{width:84px;flex-shrink:0;color:var(--text-muted);}
@@ -100,10 +104,15 @@
   .leg-box{border:1px dashed var(--border);border-radius:6px;padding:8px;background:#fff;}
   .leg-label{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:4px;}
   .leg-sub-title{font-size:10.5px;font-weight:700;color:var(--text-muted);margin:4px 0 2px;}
-  .item-card textarea{width:100%;min-height:40px;padding:6px 7px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;font-family:inherit;resize:vertical;}
+  .item-card textarea{width:100%;min-height:40px;padding:6px 7px;border:1px solid var(--border);border-radius:6px;font-size:11.5px;font-family:inherit;resize:vertical;margin-top:6px;}
   .btn-add-item{align-self:flex-start;background:#eef1fb;color:var(--accent);border:1px solid #cdd6f7;padding:7px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;}
+  .item-collapsed-summary{font-size:11.5px;color:var(--text-muted);padding:4px 2px;}
+  .item-warnings{font-size:10.5px;color:var(--danger);margin-top:6px;line-height:1.5;background:#fff3f4;border:1px solid #fbd3d8;border-radius:6px;padding:5px 7px;}
 
   .empty-msg{padding:40px 20px;text-align:center;color:var(--text-muted);font-size:13px;grid-column:1/-1;}
+
+  .toolbar-row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+  .toolbar-btn{background:#eef1fb;color:var(--accent);border:1px solid #cdd6f7;padding:8px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;}
 
   .filter-zone{display:flex;flex-wrap:wrap;gap:20px;align-items:center;}
   .filter-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
@@ -120,18 +129,23 @@
   table.detail-table thead th{background:#f5f6fa;position:sticky;top:0;}
   .row-label-col{background:#f5f6fa;font-weight:700;white-space:nowrap;min-width:120px !important;position:sticky;left:0;}
   .total-row td{font-weight:700;}
-  .total-cell{color:var(--danger);font-size:20px;font-weight:800;}
+  .total-cell{color:var(--danger);font-size:20px;font-weight:800;position:relative;}
+  .total-cell.cheapest{color:var(--good);}
+  .cheapest-badge{display:inline-block;margin-left:6px;font-size:10px;background:var(--good);color:#fff;padding:2px 6px;border-radius:8px;vertical-align:middle;}
   ul.detail-list{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:8px;}
   ul.detail-list li{line-height:1.5;}
   ul.detail-list li.muted{color:var(--text-muted);list-style:none;margin-left:-16px;}
   .li-icon{margin-right:2px;}
+  .fx-note{color:var(--text-muted);}
 
   .timeline-range{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:14px;font-size:13px;font-weight:600;}
   .timeline-range input[type=date]{padding:7px 9px;border:1px solid var(--border);border-radius:6px;font-size:13px;}
+  .gran-btn{padding:7px 12px;border:1px solid var(--border);background:#fff;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;}
+  .gran-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
   table.timeline-table thead th{background:#f5f6fa;position:sticky;top:0;z-index:2;}
   .tl-time-col{background:#f5f6fa;position:sticky;left:0;z-index:1;font-weight:700;min-width:150px;}
   .tl-cell{min-width:140px;padding:2px !important;}
-  .tl-block{padding:4px 6px;border-radius:4px;font-size:10.5px;line-height:1.3;color:#1c2333;min-height:18px;}
+  .tl-block{padding:4px 6px;border-radius:4px;font-size:10.5px;line-height:1.3;color:#1c2333;min-height:18px;margin-bottom:2px;}
   .cell-flight{background:#2563eb26;border-left:3px solid var(--c-flight);}
   .cell-move{background:#05966926;border-left:3px solid var(--c-move);}
   .cell-hotel{background:#d9770626;border-left:3px solid var(--c-hotel);}
@@ -140,13 +154,35 @@
   .legend-row{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 4px;font-size:11.5px;color:var(--text-muted);}
   .legend-chip{display:inline-flex;align-items:center;gap:5px;}
   .legend-swatch{width:11px;height:11px;border-radius:3px;display:inline-block;}
+
+  @media print{
+    .no-print{display:none !important;}
+    body{background:#fff;}
+    .screen{padding:0;max-width:none;}
+    .panel{box-shadow:none;border:1px solid #ccc;}
+    .tabs{position:static;}
+  }
+
+  @media (max-width:640px){
+    header{padding:12px;gap:10px;}
+    header h1{font-size:14px;}
+    .save-status{margin-right:0;order:3;width:100%;}
+    .screen{padding:12px;}
+    .field-row{flex-direction:column;align-items:flex-start;}
+    .field-row label{width:auto;}
+    .plan-meta-row{flex-direction:column;align-items:stretch;}
+    .filter-zone{flex-direction:column;align-items:stretch;}
+    .timeline-range{flex-direction:column;align-items:flex-start;}
+    .toolbar-row{justify-content:stretch;}
+    .toolbar-btn{flex:1;}
+  }
 </style>
 </head>
 <body>
 
-<header>
+<header class="no-print">
   <h1>✈️ 旅行料金・スケジュール比較シミュレーター <span style="color:#ffb35c;">Pro Max</span><small>複数プランを日程・行先で横断比較</small></h1>
-  <div class="save-status"><span class="save-dot" id="saveDot"></span><span id="saveText">未保存</span></div>
+  <div class="save-status"><span class="save-dot" id="saveDot"></span><span id="saveText">読み込み中...</span></div>
   <div class="header-actions">
     <button onclick="exportData()">📤 エクスポート</button>
     <button onclick="triggerImport()">📥 インポート</button>
@@ -155,7 +191,7 @@
   </div>
 </header>
 
-<div class="tabs">
+<div class="tabs no-print">
   <button class="tab-btn active" id="tab-input" onclick="showTab('input')">📝 プラン入力</button>
   <button class="tab-btn" id="tab-compare" onclick="showTab('compare')">📊 比較結果を見る</button>
 </div>
@@ -168,6 +204,11 @@
     <div class="master-row" id="masterArea"></div>
   </div>
 
+  <div class="panel">
+    <div class="panel-title">💱 通貨レート設定（対 円 / 1単位あたり）</div>
+    <div class="master-inputs" id="currencySettings"></div>
+  </div>
+
   <div class="add-plan-row">
     <button id="addPlanBtn" onclick="addPlan()">＋ 新しい比較プランを追加</button>
   </div>
@@ -178,7 +219,12 @@
 <!-- ===================== 比較結果画面 ===================== -->
 <div class="screen hidden" id="screen-compare">
 
-  <div class="panel">
+  <div class="toolbar-row no-print">
+    <button class="toolbar-btn" onclick="printCompare()">🖨️ 印刷 / PDF</button>
+    <button class="toolbar-btn" onclick="exportCompareImage()">🖼️ 画像として保存</button>
+  </div>
+
+  <div class="panel no-print">
     <div class="panel-title">🔀 掛け合わせ比較セレクター</div>
     <div class="filter-zone">
       <div class="filter-item">📅 対象の日程グループ
@@ -191,7 +237,7 @@
   </div>
 
   <div class="panel">
-    <div class="panel-title">① 金額内訳比較グラフ</div>
+    <div class="panel-title">① 金額内訳比較グラフ（円換算）</div>
     <div class="legend-row">
       <span class="legend-chip"><span class="legend-swatch" style="background:#2563eb"></span>航空券代</span>
       <span class="legend-chip"><span class="legend-swatch" style="background:#059669"></span>その他移動費</span>
@@ -208,10 +254,14 @@
 
   <div class="panel">
     <div class="panel-title">③ 旅程スケジュール時間表（タイムライン）</div>
-    <div class="timeline-range">
+    <div class="timeline-range no-print">
       📅 表示期間：
       <span>開始日 <input type="date" id="tlStart" onchange="onTimelineDateChange()"></span>
       <span>終了日 <input type="date" id="tlEnd" onchange="onTimelineDateChange()"></span>
+      <span>
+        <button id="gran-hour" class="gran-btn active" onclick="setGranularity('hour')">🕐 時間単位</button>
+        <button id="gran-day" class="gran-btn" onclick="setGranularity('day')">📅 日単位</button>
+      </span>
     </div>
     <div class="timeline-scroll" id="timelineTableWrap"></div>
   </div>
@@ -222,23 +272,34 @@
 /* ========================================================================
    State & Constants
    ======================================================================== */
-const STORAGE_KEY = 'travel_sim_pro_max_v1';
+const STORAGE_KEY = 'travel_sim_pro_max_v1';   // legacy localStorage key
+const DB_NAME = 'travel_sim_pro_max_db';
+const DB_STORE = 'kv';
+const MAIN_KEY = 'main_state';
+const CURRENT_VERSION = 2;
+
 let state;
 let currentTab = 'input';
 let timelineUserSet = false;
+let timelineGranularity = 'hour';
 let chartInstance = null;
 let saveTimer = null;
 
-const TYPE_OPTIONS = [
-  {v:'flight', label:'✈️ 航空券'},
-  {v:'train',  label:'🚂 電車'},
-  {v:'ship',   label:'🚢 船'},
-  {v:'hotel',  label:'🏨 ホテル'},
-  {v:'other',  label:'✨ その他'}
-];
+const ITEM_TYPE_META = {
+  flight: {label:'✈️ 航空券', category:'flight', kind:'transport'},
+  train:  {label:'🚂 電車',   category:'move',   kind:'transport'},
+  ship:   {label:'🚢 船',     category:'move',   kind:'transport'},
+  hotel:  {label:'🏨 ホテル', category:'hotel',  kind:'hotel'},
+  other:  {label:'✨ その他', category:'other',  kind:'other'}
+};
 
+function defaultSettings(){
+  return { exchangeRates:{ JPY:1, USD:155, EUR:170, GBP:200 } };
+}
 function defaultState(){
   return {
+    version: CURRENT_VERSION,
+    settings: defaultSettings(),
     master:{
       schedules:['日程A','日程B','日程C','日程D','日程E'],
       destinations:['行先X','行先Y','行先Z','行先W','行先V']
@@ -255,18 +316,21 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function genId(){ return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
-function getCategory(type){
-  if(type==='flight') return 'flight';
-  if(type==='train'||type==='ship') return 'move';
-  if(type==='hotel') return 'hotel';
-  return 'other';
-}
-function typeIcon(type){ return {flight:'✈️',train:'🚂',ship:'🚢',hotel:'🏨',other:'✨'}[type]||''; }
+function getCategory(type){ return (ITEM_TYPE_META[type]||{}).category || 'other'; }
+function typeIcon(type){ const m=ITEM_TYPE_META[type]; return m ? m.label.split(' ')[0] : '✨'; }
 function sumTotals(t){ return (t.flight||0)+(t.move||0)+(t.hotel||0)+(t.other||0); }
+function toJPY(amount, currency){
+  const rates = state.settings.exchangeRates;
+  const rate = (currency && rates[currency]!==undefined) ? rates[currency] : 1;
+  return (Number(amount)||0) * rate;
+}
 function computePlanTotals(plan){
   const t={flight:0,move:0,hotel:0,other:0};
-  plan.items.forEach(it=>{ t[getCategory(it.type)] += Number(it.amount)||0; });
+  plan.items.forEach(it=>{ t[getCategory(it.type)] += toJPY(it.amount, it.currency); });
   return t;
+}
+function currencyOptions(selected){
+  return Object.keys(state.settings.exchangeRates).map(c=>`<option value="${c}" ${selected===c?'selected':''}>${c}</option>`).join('');
 }
 function newTransportLeg(){
   return {
@@ -280,7 +344,7 @@ function newTransportLeg(){
 }
 function createItem(type){
   return {
-    id:genId(), type, amount:0, note:'',
+    id:genId(), type, amount:0, currency:'JPY', note:'', collapsed:false,
     tripType:'oneway', company:'', destination:'',
     outbound:newTransportLeg(), return:null,
     hotelName:'', checkin:'', checkout:'',
@@ -306,26 +370,95 @@ function addHour(dtStr){
 }
 
 /* ========================================================================
-   Persistence
+   Migration
    ======================================================================== */
-function loadState(){
+function migrateState(data){
+  let d = data || {};
+  if(!d.version){
+    d.version = 1;
+    if(!d.settings) d.settings = defaultSettings();
+    (d.plans||[]).forEach(p=>{
+      if(p.people===undefined) p.people=1;
+      if(p.nights===undefined) p.nights=1;
+      (p.items||[]).forEach(it=>{
+        if(it.currency===undefined) it.currency='JPY';
+        if(it.collapsed===undefined) it.collapsed=false;
+      });
+    });
+  }
+  if(!d.settings) d.settings = defaultSettings();
+  if(!d.settings.exchangeRates) d.settings.exchangeRates = defaultSettings().exchangeRates;
+  if(!d.master) d.master = defaultState().master;
+  if(!d.plans) d.plans = [];
+  d.plans.forEach(p=>{
+    if(p.people===undefined) p.people=1;
+    if(p.nights===undefined) p.nights=1;
+    if(!Array.isArray(p.items)) p.items=[];
+    p.items.forEach(it=>{
+      if(it.currency===undefined) it.currency='JPY';
+      if(it.collapsed===undefined) it.collapsed=false;
+    });
+  });
+  d.version = CURRENT_VERSION;
+  return d;
+}
+
+/* ========================================================================
+   Persistence (IndexedDB with localStorage fallback)
+   ======================================================================== */
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    if(!('indexedDB' in window)){ reject(new Error('no-indexeddb')); return; }
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = ()=>{ req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+async function idbGet(key){
+  const db = await openDB();
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(DB_STORE,'readonly');
+    const r = tx.objectStore(DB_STORE).get(key);
+    r.onsuccess = ()=> resolve(r.result);
+    r.onerror = ()=> reject(r.error);
+  });
+}
+async function idbSet(key, value){
+  const db = await openDB();
+  return new Promise((resolve,reject)=>{
+    const tx = db.transaction(DB_STORE,'readwrite');
+    tx.objectStore(DB_STORE).put(value, key);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+async function loadState(){
+  let data = null;
   try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      state = JSON.parse(raw);
-      if(!state.master) state.master = defaultState().master;
-      if(!state.plans) state.plans = [];
-    } else {
-      state = defaultState();
-    }
-  }catch(e){ state = defaultState(); }
+    data = await idbGet(MAIN_KEY);
+  }catch(e){ /* IndexedDB unavailable, fall through */ }
+  if(!data){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) data = JSON.parse(raw);
+    }catch(e){ /* ignore */ }
+  }
+  if(!data) data = defaultState();
+  state = migrateState(data);
+  await persist(true);
+}
+async function persist(silent){
+  try{
+    await idbSet(MAIN_KEY, state);
+  }catch(e){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e2){ /* ignore */ }
+  }
+  if(!silent) flashSaveStatus();
 }
 function scheduleSave(){
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(()=>{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    flashSaveStatus();
-  }, 250);
+  saveTimer = setTimeout(()=>{ persist(false); }, 250);
 }
 function flashSaveStatus(){
   const dot=document.getElementById('saveDot');
@@ -352,10 +485,10 @@ function handleImport(evt){
     try{
       const data = JSON.parse(e.target.result);
       if(!data || !data.master || !data.plans) throw new Error('invalid');
-      state = data;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      state = migrateState(data);
+      persist(true);
       timelineUserSet = false;
-      renderMaster(); renderPlans(); renderFilterSelectors();
+      renderSettings(); renderMaster(); renderPlans(); renderFilterSelectors();
       if(currentTab==='compare') renderCompareTab();
       flashSaveStatus();
       alert('データを読み込みました。');
@@ -368,10 +501,11 @@ function handleImport(evt){
 }
 function resetAll(){
   if(!confirm('全データを削除して初期化します。よろしいですか？この操作は取り消せません。')) return;
-  localStorage.removeItem(STORAGE_KEY);
   state = defaultState();
+  persist(true);
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){ /* ignore */ }
   timelineUserSet = false;
-  renderMaster(); renderPlans(); renderFilterSelectors();
+  renderSettings(); renderMaster(); renderPlans(); renderFilterSelectors();
   const s=document.getElementById('tlStart'), en=document.getElementById('tlEnd');
   if(s) s.value=''; if(en) en.value='';
   if(currentTab==='compare') renderCompareTab();
@@ -390,6 +524,24 @@ function showTab(tab){
   if(tab==='compare'){ renderFilterSelectors(); renderCompareTab(); }
 }
 function maybeRefreshCompare(){ if(currentTab==='compare') renderCompareTab(); }
+
+/* ========================================================================
+   Settings (currency)
+   ======================================================================== */
+function renderSettings(){
+  const wrap = document.getElementById('currencySettings');
+  const rates = state.settings.exchangeRates;
+  wrap.innerHTML = Object.keys(rates).map(cur=>{
+    if(cur==='JPY') return `<div class="field-row" style="flex-direction:column;align-items:flex-start;"><label>JPY(基準)</label><input type="number" value="1" disabled></div>`;
+    return `<div class="field-row" style="flex-direction:column;align-items:flex-start;"><label>${cur}</label><input type="number" step="0.01" min="0" value="${rates[cur]}" oninput="updateExchangeRate('${cur}', this.value)"></div>`;
+  }).join('');
+}
+function updateExchangeRate(cur, val){
+  state.settings.exchangeRates[cur] = parseFloat(val)||0;
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
 
 /* ========================================================================
    Master
@@ -433,9 +585,11 @@ function renderPlans(){
 }
 function renderPlanCard(plan){
   const totals = computePlanTotals(plan);
+  const warnCount = plan.items.reduce((n,it)=> n + getItemWarnings(it).length, 0);
   return `<div class="plan-card" id="plan-${plan.id}">
     <div class="plan-card-header">
       <input type="text" class="plan-name" placeholder="プラン名" value="${escapeHtml(plan.name)}" oninput="updatePlanField('${plan.id}','name', this.value)">
+      <button class="btn-icon" onclick="duplicatePlan('${plan.id}')" title="このプランを複製">📄</button>
       <button class="btn-icon danger" onclick="removePlan('${plan.id}')" title="このプランを削除">🗑️</button>
     </div>
     <div class="plan-meta-row">
@@ -450,7 +604,11 @@ function renderPlanCard(plan){
         ${state.master.destinations.map((s,i)=> s.trim() ? `<option value="${i}" ${String(plan.destinationGroup)===String(i)?'selected':''}>${escapeHtml(s)}</option>` : '').join('')}
       </select>
     </div>
-    <div class="plan-total">小計: ¥${sumTotals(totals).toLocaleString()}</div>
+    <div class="plan-meta-row">
+      <label>👥人数</label><input type="number" min="1" value="${plan.people||1}" oninput="updatePlanField('${plan.id}','people', parseInt(this.value)||1)">
+      <label>🌙泊数</label><input type="number" min="0" value="${plan.nights||0}" oninput="updatePlanField('${plan.id}','nights', parseInt(this.value)||0)">
+    </div>
+    <div class="plan-total">小計(円換算): ¥${sumTotals(totals).toLocaleString()} ${warnCount? `<span style="color:var(--danger);font-weight:700;">⚠️${warnCount}件の入力漏れ</span>`:''}</div>
     <div class="items-list">
       ${plan.items.map(it=>renderItem(plan,it)).join('') || '<div style="font-size:12px;color:#9aa1b5;">項目がありません。下のボタンから追加してください。</div>'}
     </div>
@@ -469,7 +627,22 @@ function addPlan(){
     return;
   }
   const idx = state.plans.length+1;
-  state.plans.push({id:genId(), name:`プラン${idx}`, scheduleGroup:'', destinationGroup:'', items:[]});
+  state.plans.push({id:genId(), name:`プラン${idx}`, scheduleGroup:'', destinationGroup:'', people:1, nights:1, items:[]});
+  renderPlans();
+  scheduleSave();
+}
+function duplicatePlan(id){
+  if(state.plans.length>=25){
+    alert('プランは最大25個までのため、これ以上複製できません。');
+    return;
+  }
+  const p = findPlan(id); if(!p) return;
+  const clone = JSON.parse(JSON.stringify(p));
+  clone.id = genId();
+  clone.name = (p.name||'プラン') + 'のコピー';
+  clone.items.forEach(it=>{ it.id = genId(); });
+  const idx = state.plans.findIndex(pp=>pp.id===id);
+  state.plans.splice(idx+1, 0, clone);
   renderPlans();
   scheduleSave();
 }
@@ -495,18 +668,63 @@ function updateAddButtonState(){
 /* ========================================================================
    Items
    ======================================================================== */
+function shortLabel(item){
+  if(item.type==='hotel') return item.hotelName || 'ホテル未設定';
+  if(item.type==='other') return item.content || '内容未設定';
+  return `${item.company||'会社未設定'} → ${item.destination||'目的地未設定'}`;
+}
+function getItemWarnings(item){
+  const w = [];
+  if(Number(item.amount) < 0) w.push('金額が負の値です');
+  const meta = ITEM_TYPE_META[item.type] || {};
+  if(meta.kind==='hotel'){
+    if(!item.checkin || !item.checkout) w.push('チェックイン/チェックアウト日時が未入力です（タイムライン非表示）');
+    else if(item.checkout <= item.checkin) w.push('チェックアウトがチェックインより前です');
+  } else if(meta.kind==='other'){
+    if(!item.startDatetime) w.push('開始日時が未入力です（タイムライン非表示）');
+    if(item.startDatetime && item.endDatetime && item.endDatetime <= item.startDatetime) w.push('終了日時が開始日時より前です');
+  } else if(meta.kind==='transport'){
+    const checkLeg = (sec,label)=>{
+      if(!sec) return;
+      if(sec.connection==='direct'){
+        if(!sec.direct.depDatetime || !sec.direct.arrDatetime) w.push(`${label}: 日時が未入力です（タイムライン非表示）`);
+        else if(sec.direct.arrDatetime <= sec.direct.depDatetime) w.push(`${label}: 到着日時が出発日時より前です`);
+      } else {
+        if(!sec.transit.leg1.depDatetime || !sec.transit.leg1.transitArrDatetime) w.push(`${label}1便目: 日時が未入力です`);
+        else if(sec.transit.leg1.transitArrDatetime <= sec.transit.leg1.depDatetime) w.push(`${label}1便目: 乗継着が出発より前です`);
+        if(!sec.transit.leg2.transitDepDatetime || !sec.transit.leg2.arrDatetime) w.push(`${label}2便目: 日時が未入力です`);
+        else if(sec.transit.leg2.arrDatetime <= sec.transit.leg2.transitDepDatetime) w.push(`${label}2便目: 到着が乗継発より前です`);
+      }
+    };
+    checkLeg(item.outbound, '往路');
+    if(item.tripType==='roundtrip') checkLeg(item.return, '復路');
+  }
+  return w;
+}
 function renderItem(plan, item){
   const cat = getCategory(item.type);
+  const warnings = getItemWarnings(item);
+  const warnHtml = warnings.length ? `<div class="item-warnings">${warnings.map(x=>'⚠️ '+escapeHtml(x)).join('<br>')}</div>` : '';
+  const bodyHtml = item.collapsed
+    ? `<div class="item-collapsed-summary">${escapeHtml(typeIcon(item.type)+' '+shortLabel(item))} ／ ¥${toJPY(item.amount,item.currency).toLocaleString()}${item.currency!=='JPY' ? ' ('+item.amount+' '+item.currency+')' : ''}</div>`
+    : `<div class="item-detail">${renderItemDetail(plan,item)}</div>
+       <textarea placeholder="備考" oninput="updateField('${plan.id}','${item.id}','note', this.value)">${escapeHtml(item.note)}</textarea>`;
   return `<div class="item-card cat-${cat}" id="item-${item.id}">
     <div class="item-row-top">
-      <select onchange="changeItemType('${plan.id}','${item.id}', this.value)">
-        ${TYPE_OPTIONS.map(o=>`<option value="${o.v}" ${item.type===o.v?'selected':''}>${o.label}</option>`).join('')}
+      <button class="btn-icon small" onclick="toggleCollapse('${plan.id}','${item.id}')" title="開閉">${item.collapsed?'▸':'▾'}</button>
+      <select class="type-select" onchange="changeItemType('${plan.id}','${item.id}', this.value)">
+        ${Object.keys(ITEM_TYPE_META).map(v=>`<option value="${v}" ${item.type===v?'selected':''}>${ITEM_TYPE_META[v].label}</option>`).join('')}
       </select>
-      <input type="number" class="amount-input" placeholder="金額(円)" value="${item.amount||0}" oninput="updateField('${plan.id}','${item.id}','amount', this.value)">
+      <input type="number" class="amount-input" placeholder="金額" value="${item.amount||0}" oninput="updateField('${plan.id}','${item.id}','amount', this.value)">
+      <select class="currency-select" onchange="updateField('${plan.id}','${item.id}','currency', this.value)">
+        ${currencyOptions(item.currency||'JPY')}
+      </select>
+      <button class="btn-icon small" onclick="moveItem('${plan.id}','${item.id}',-1)" title="上へ移動">⬆️</button>
+      <button class="btn-icon small" onclick="moveItem('${plan.id}','${item.id}',1)" title="下へ移動">⬇️</button>
       <button class="btn-icon danger small" onclick="removeItem('${plan.id}','${item.id}')" title="削除">✕</button>
     </div>
-    <div class="item-detail">${renderItemDetail(plan,item)}</div>
-    <textarea placeholder="備考" oninput="updateField('${plan.id}','${item.id}','note', this.value)">${escapeHtml(item.note)}</textarea>
+    ${bodyHtml}
+    ${warnHtml}
   </div>`;
 }
 function fieldRow(label, inputHtml){ return `<div class="field-row"><label>${label}</label>${inputHtml}</div>`; }
@@ -514,7 +732,8 @@ function textInput(planId,itemId,path,val){ return `<input type="text" value="${
 function dtInput(planId,itemId,path,val){ return `<input type="datetime-local" value="${escapeHtml(val)}" oninput="updateField('${planId}','${itemId}','${path}', this.value)">`; }
 
 function renderItemDetail(plan, item){
-  if(item.type==='flight'||item.type==='train'||item.type==='ship'){
+  const meta = ITEM_TYPE_META[item.type] || {};
+  if(meta.kind==='transport'){
     let html = `<div class="field-row"><label>片道/往復</label>
       <select onchange="changeTripType('${plan.id}','${item.id}', this.value)">
         <option value="oneway" ${item.tripType==='oneway'?'selected':''}>片道</option>
@@ -526,13 +745,12 @@ function renderItemDetail(plan, item){
     html += fieldRow('最終目的地', textInput(plan.id,item.id,'destination',item.destination));
     return html;
   }
-  if(item.type==='hotel'){
+  if(meta.kind==='hotel'){
     let html = fieldRow('ホテル名', textInput(plan.id,item.id,'hotelName',item.hotelName));
     html += fieldRow('チェックイン', dtInput(plan.id,item.id,'checkin',item.checkin));
     html += fieldRow('チェックアウト', dtInput(plan.id,item.id,'checkout',item.checkout));
     return html;
   }
-  // other
   let html = fieldRow('内容', textInput(plan.id,item.id,'content',item.content));
   html += fieldRow('開始日時', dtInput(plan.id,item.id,'startDatetime',item.startDatetime));
   html += fieldRow('終了日時(任意)', dtInput(plan.id,item.id,'endDatetime',item.endDatetime));
@@ -578,7 +796,7 @@ function changeItemType(planId, itemId, newType){
   const idx = p.items.findIndex(i=>i.id===itemId); if(idx<0) return;
   const old = p.items[idx];
   const fresh = createItem(newType);
-  fresh.id = old.id; fresh.amount = old.amount; fresh.note = old.note;
+  fresh.id = old.id; fresh.amount = old.amount; fresh.note = old.note; fresh.currency = old.currency;
   p.items[idx] = fresh;
   renderPlans();
   scheduleSave();
@@ -595,6 +813,24 @@ function changeTripType(planId, itemId, val){
 function setConnection(planId, itemId, dir, val){
   const item = findItem(planId,itemId); if(!item) return;
   item[dir].connection = val;
+  renderPlans();
+  scheduleSave();
+  maybeRefreshCompare();
+}
+function toggleCollapse(planId, itemId){
+  const item = findItem(planId,itemId); if(!item) return;
+  item.collapsed = !item.collapsed;
+  renderPlans();
+  scheduleSave();
+}
+function moveItem(planId, itemId, dir){
+  const p = findPlan(planId); if(!p) return;
+  const idx = p.items.findIndex(i=>i.id===itemId);
+  const newIdx = idx + dir;
+  if(idx<0 || newIdx<0 || newIdx>=p.items.length) return;
+  const tmp = p.items[idx];
+  p.items[idx] = p.items[newIdx];
+  p.items[newIdx] = tmp;
   renderPlans();
   scheduleSave();
   maybeRefreshCompare();
@@ -638,9 +874,15 @@ function getFilteredPlans(){
 }
 function onFilterChange(){ timelineUserSet = false; renderCompareTab(); }
 function onTimelineDateChange(){ timelineUserSet = true; renderCompareTab(); }
+function setGranularity(g){
+  timelineGranularity = g;
+  document.getElementById('gran-hour').classList.toggle('active', g==='hour');
+  document.getElementById('gran-day').classList.toggle('active', g==='day');
+  renderCompareTab();
+}
 
 /* ========================================================================
-   Events extraction (for chart-independent timeline)
+   Events extraction
    ======================================================================== */
 function legEvents(sec, labelBase, cat){
   if(!sec) return [];
@@ -662,17 +904,18 @@ function legEvents(sec, labelBase, cat){
 function getItemEvents(item){
   const cat = getCategory(item.type);
   let events = [];
-  if(item.type==='flight'||item.type==='train'||item.type==='ship'){
+  const meta = ITEM_TYPE_META[item.type] || {};
+  if(meta.kind==='transport'){
     const icon = typeIcon(item.type);
     events = events.concat(legEvents(item.outbound, `${icon}${item.company?(' '+item.company):''} 往路`, cat));
     if(item.tripType==='roundtrip' && item.return){
       events = events.concat(legEvents(item.return, `${icon}${item.company?(' '+item.company):''} 復路`, cat));
     }
-  } else if(item.type==='hotel'){
+  } else if(meta.kind==='hotel'){
     if(item.checkin && item.checkout){
       events.push({start:item.checkin, end:item.checkout, label:`🏨 ${item.hotelName||'ホテル'}`, cat});
     }
-  } else if(item.type==='other'){
+  } else if(meta.kind==='other'){
     if(item.startDatetime){
       const end = (item.endDatetime && item.endDatetime > item.startDatetime) ? item.endDatetime : addHour(item.startDatetime);
       events.push({start:item.startDatetime, end, label:`✨ ${item.content||'その他'}`, cat});
@@ -725,12 +968,13 @@ function renderChart(filteredPlans){
    ======================================================================== */
 function itemDetailLines(item){
   const lines = [];
-  if(item.type==='flight'||item.type==='train'||item.type==='ship'){
+  const meta = ITEM_TYPE_META[item.type] || {};
+  if(meta.kind==='transport'){
     lines.push(`${item.tripType==='roundtrip'?'往復':'片道'} / ${item.company||'(会社名未設定)'}`);
     lines.push(...legLines(item.outbound,'往路'));
     if(item.tripType==='roundtrip' && item.return) lines.push(...legLines(item.return,'復路'));
     lines.push(`最終目的地: ${item.destination||'-'}`);
-  } else if(item.type==='hotel'){
+  } else if(meta.kind==='hotel'){
     lines.push(`${item.hotelName||'(ホテル名未設定)'}`);
     lines.push(`IN:${item.checkin||'-'} / OUT:${item.checkout||'-'}`);
   } else {
@@ -756,24 +1000,45 @@ function renderTable(filteredPlans){
     wrap.innerHTML = '<div class="empty-msg">対象のプランがありません。日程・行先の絞り込み条件をご確認ください。</div>';
     return;
   }
+  const planTotals = filteredPlans.map(p=>sumTotals(computePlanTotals(p)));
+  const minTotal = Math.min(...planTotals);
+  const hasMultiple = filteredPlans.length > 1;
+
   let html = '<table class="detail-table"><thead><tr><th class="row-label-col">項目</th>';
   filteredPlans.forEach(p=> html += `<th>${escapeHtml(p.name)||'(無題)'}</th>`);
   html += '</tr></thead><tbody>';
+
   html += '<tr class="total-row"><td class="row-label-col">合計金額</td>';
-  filteredPlans.forEach(p=>{ const t=computePlanTotals(p); html += `<td class="total-cell">¥${sumTotals(t).toLocaleString()}</td>`; });
+  filteredPlans.forEach((p,i)=>{
+    const total = planTotals[i];
+    const isCheapest = hasMultiple && total===minTotal;
+    html += `<td class="total-cell ${isCheapest?'cheapest':''}">¥${total.toLocaleString()}${isCheapest?'<span class="cheapest-badge">最安</span>':''}</td>`;
+  });
   html += '</tr>';
+
+  html += '<tr><td class="row-label-col">👥 1人あたり</td>';
+  filteredPlans.forEach((p,i)=>{ const per = planTotals[i]/(p.people||1); html += `<td>¥${Math.round(per).toLocaleString()}</td>`; });
+  html += '</tr>';
+
+  html += '<tr><td class="row-label-col">🌙 1泊あたり</td>';
+  filteredPlans.forEach((p,i)=>{ const per = p.nights ? planTotals[i]/p.nights : planTotals[i]; html += `<td>¥${Math.round(per).toLocaleString()}</td>`; });
+  html += '</tr>';
+
   [['✈️ 航空券代','flight'],['🚈 その他移動費','move'],['🏨 ホテル代','hotel'],['✨ その他費用','other']].forEach(([label,key])=>{
     html += `<tr><td class="row-label-col">${label}</td>`;
     filteredPlans.forEach(p=>{ const t=computePlanTotals(p); html += `<td>¥${(t[key]||0).toLocaleString()}</td>`; });
     html += '</tr>';
   });
+
   html += '<tr><td class="row-label-col">詳細</td>';
   filteredPlans.forEach(p=>{
     html += '<td><ul class="detail-list">';
     if(!p.items.length){ html += '<li class="muted">項目未登録</li>'; }
     p.items.forEach(it=>{
       const lines = itemDetailLines(it);
-      html += `<li><span class="li-icon">${typeIcon(it.type)}</span> ¥${(Number(it.amount)||0).toLocaleString()}<br>${lines.map(l=>escapeHtml(l)).join('<br>')}</li>`;
+      const jpy = toJPY(it.amount, it.currency);
+      const fxNote = it.currency!=='JPY' ? ` <span class="fx-note">(${it.amount} ${it.currency})</span>` : '';
+      html += `<li><span class="li-icon">${typeIcon(it.type)}</span> ¥${jpy.toLocaleString()}${fxNote}<br>${lines.map(l=>escapeHtml(l)).join('<br>')}</li>`;
     });
     html += '</ul></td>';
   });
@@ -782,7 +1047,7 @@ function renderTable(filteredPlans){
 }
 
 /* ========================================================================
-   Timeline
+   Timeline (hourly / daily)
    ======================================================================== */
 function computeDefaultRange(events){
   if(!events.length){
@@ -825,6 +1090,26 @@ function buildTimelineRows(filteredPlans, planEventsMap, startVal, endVal){
   }
   return rows;
 }
+function buildTimelineRowsDaily(filteredPlans, planEventsMap, startVal, endVal){
+  const rows = [];
+  if(!startVal || !endVal) return rows;
+  let cur = new Date(startVal+'T00:00:00');
+  const endBound = new Date(endVal+'T00:00:00'); endBound.setDate(endBound.getDate()+1);
+  if(isNaN(cur) || isNaN(endBound)) return rows;
+  let guard = 0;
+  while(cur < endBound && guard < 400){
+    guard++;
+    const dayStart = new Date(cur);
+    const dayEnd = new Date(cur); dayEnd.setDate(dayEnd.getDate()+1);
+    const cells = {};
+    filteredPlans.forEach(p=>{
+      cells[p.id] = (planEventsMap.get(p.id)||[]).filter(e=> e.startD < dayEnd && e.endD > dayStart);
+    });
+    rows.push({dt:new Date(cur), cells});
+    cur.setDate(cur.getDate()+1);
+  }
+  return rows;
+}
 function renderTimelineTable(filteredPlans, rows){
   const container = document.getElementById('timelineTableWrap');
   if(!filteredPlans.length){ container.innerHTML = '<div class="empty-msg">対象のプランがありません。</div>'; return; }
@@ -850,6 +1135,46 @@ function renderTimelineTable(filteredPlans, rows){
   });
   html += '</tbody></table>';
   container.innerHTML = html;
+}
+function renderTimelineTableDaily(filteredPlans, rows){
+  const container = document.getElementById('timelineTableWrap');
+  if(!filteredPlans.length){ container.innerHTML = '<div class="empty-msg">対象のプランがありません。</div>'; return; }
+  if(!rows.length){ container.innerHTML = '<div class="empty-msg">この期間に表示できる予定がありません。</div>'; return; }
+  const pad=n=>String(n).padStart(2,'0');
+  const timeFmt = dt=>{ const x=new Date(dt); return pad(x.getHours())+':'+pad(x.getMinutes()); };
+  let html = '<table class="timeline-table"><thead><tr><th class="tl-time-col">日付</th>';
+  filteredPlans.forEach(p=> html += `<th>${escapeHtml(p.name)||'(無題)'}</th>`);
+  html += '</tr></thead><tbody>';
+  rows.forEach(row=>{
+    const d = row.dt;
+    html += `<tr><td class="tl-time-col">${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}</td>`;
+    filteredPlans.forEach(p=>{
+      const evs = row.cells[p.id]||[];
+      if(!evs.length){ html += '<td class="tl-cell"></td>'; return; }
+      const inner = evs.map(e=> `<div class="tl-block cell-${e.cat}">${escapeHtml(e.label)} (${timeFmt(e.start)}-${timeFmt(e.end)})</div>`).join('');
+      html += `<td class="tl-cell">${inner}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
+/* ========================================================================
+   Print / Image export
+   ======================================================================== */
+function printCompare(){ window.print(); }
+function exportCompareImage(){
+  if(typeof html2canvas === 'undefined'){
+    alert('画像出力ライブラリの読み込みに失敗しました。ネットワーク接続をご確認ください。');
+    return;
+  }
+  html2canvas(document.getElementById('screen-compare'), {backgroundColor:'#f3f5f8', scale:2}).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = 'travel_compare_' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }).catch(()=>{ alert('画像の生成に失敗しました。'); });
 }
 
 /* ========================================================================
@@ -881,20 +1206,27 @@ function renderCompareTab(){
     planEventsMap.set(p.id, evs);
   });
 
-  const rows = buildTimelineRows(filtered, planEventsMap, startInput.value, endInput.value);
-  renderTimelineTable(filtered, rows);
+  if(timelineGranularity==='hour'){
+    const rows = buildTimelineRows(filtered, planEventsMap, startInput.value, endInput.value);
+    renderTimelineTable(filtered, rows);
+  } else {
+    const rows = buildTimelineRowsDaily(filtered, planEventsMap, startInput.value, endInput.value);
+    renderTimelineTableDaily(filtered, rows);
+  }
 }
 
 /* ========================================================================
    Init
    ======================================================================== */
-window.addEventListener('DOMContentLoaded', ()=>{
-  loadState();
+async function init(){
+  await loadState();
+  renderSettings();
   renderMaster();
   renderPlans();
   renderFilterSelectors();
   showTab('input');
-});
+}
+window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
