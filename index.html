@@ -143,13 +143,19 @@
   .gran-btn{padding:7px 12px;border:1px solid var(--border);background:#fff;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;}
   .gran-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
   table.timeline-table thead th{background:#f5f6fa;position:sticky;top:0;z-index:2;}
-  .tl-time-col{background:#f5f6fa;position:sticky;left:0;z-index:1;font-weight:700;min-width:150px;}
-  .tl-cell{min-width:140px;padding:2px !important;}
-  .tl-block{padding:4px 6px;border-radius:4px;font-size:10.5px;line-height:1.3;color:#1c2333;min-height:18px;margin-bottom:2px;}
-  .cell-flight{background:#2563eb26;border-left:3px solid var(--c-flight);}
-  .cell-move{background:#05966926;border-left:3px solid var(--c-move);}
-  .cell-hotel{background:#d9770626;border-left:3px solid var(--c-hotel);}
-  .cell-other{background:#7c3aed26;border-left:3px solid var(--c-other);}
+  table.timeline-table tbody tr:nth-child(even){background:#fafbfd;}
+  table.timeline-table tbody tr.day-start td{border-top:2px solid var(--accent);}
+  .tl-time-col{background:#f5f6fa;position:sticky;left:0;z-index:1;font-weight:700;min-width:170px;white-space:nowrap;}
+  .tl-cell{min-width:170px;max-width:220px;padding:3px !important;white-space:normal;vertical-align:top;}
+  .tl-block{padding:5px 8px;border-radius:6px;font-size:11px;line-height:1.35;color:#1c2333;min-height:16px;margin-bottom:3px;}
+  .tl-block-continue{min-height:10px;padding:2px 8px;opacity:.55;}
+  .tl-block-title{font-weight:700;font-size:11px;}
+  .tl-block-route{font-size:10px;color:#3c4356;margin-top:2px;}
+  .tl-block-time{font-size:9.5px;color:#6b7385;margin-top:2px;}
+  .cell-flight{background:#2563eb1f;border-left:3px solid var(--c-flight);}
+  .cell-move{background:#0596691f;border-left:3px solid var(--c-move);}
+  .cell-hotel{background:#d977061f;border-left:3px solid var(--c-hotel);}
+  .cell-other{background:#7c3aed1f;border-left:3px solid var(--c-other);}
 
   .legend-row{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 4px;font-size:11.5px;color:var(--text-muted);}
   .legend-chip{display:inline-flex;align-items:center;gap:5px;}
@@ -583,9 +589,25 @@ function renderPlans(){
   grid.innerHTML = state.plans.map(p=>renderPlanCard(p)).join('');
   updateAddButtonState();
 }
-function renderPlanCard(plan){
+function planTotalHtml(plan){
   const totals = computePlanTotals(plan);
   const warnCount = plan.items.reduce((n,it)=> n + getItemWarnings(it).length, 0);
+  return `小計(円換算): ¥${sumTotals(totals).toLocaleString()} ${warnCount? `<span style="color:var(--danger);font-weight:700;">⚠️${warnCount}件の入力漏れ</span>`:''}`;
+}
+function refreshPlanTotal(planId){
+  const plan = findPlan(planId); if(!plan) return;
+  const el = document.getElementById('plantotal-'+planId);
+  if(el) el.innerHTML = planTotalHtml(plan);
+}
+function refreshItemWarnings(planId, itemId){
+  const item = findItem(planId, itemId); if(!item) return;
+  const el = document.getElementById('warn-'+itemId);
+  if(!el) return;
+  const warnings = getItemWarnings(item);
+  el.innerHTML = warnings.map(x=>'⚠️ '+escapeHtml(x)).join('<br>');
+  el.classList.toggle('hidden', warnings.length===0);
+}
+function renderPlanCard(plan){
   return `<div class="plan-card" id="plan-${plan.id}">
     <div class="plan-card-header">
       <input type="text" class="plan-name" placeholder="プラン名" value="${escapeHtml(plan.name)}" oninput="updatePlanField('${plan.id}','name', this.value)">
@@ -608,7 +630,7 @@ function renderPlanCard(plan){
       <label>👥人数</label><input type="number" min="1" value="${plan.people||1}" oninput="updatePlanField('${plan.id}','people', parseInt(this.value)||1)">
       <label>🌙泊数</label><input type="number" min="0" value="${plan.nights||0}" oninput="updatePlanField('${plan.id}','nights', parseInt(this.value)||0)">
     </div>
-    <div class="plan-total">小計(円換算): ¥${sumTotals(totals).toLocaleString()} ${warnCount? `<span style="color:var(--danger);font-weight:700;">⚠️${warnCount}件の入力漏れ</span>`:''}</div>
+    <div class="plan-total" id="plantotal-${plan.id}">${planTotalHtml(plan)}</div>
     <div class="items-list">
       ${plan.items.map(it=>renderItem(plan,it)).join('') || '<div style="font-size:12px;color:#9aa1b5;">項目がありません。下のボタンから追加してください。</div>'}
     </div>
@@ -704,7 +726,7 @@ function getItemWarnings(item){
 function renderItem(plan, item){
   const cat = getCategory(item.type);
   const warnings = getItemWarnings(item);
-  const warnHtml = warnings.length ? `<div class="item-warnings">${warnings.map(x=>'⚠️ '+escapeHtml(x)).join('<br>')}</div>` : '';
+  const warnHtml = `<div class="item-warnings ${warnings.length?'':'hidden'}" id="warn-${item.id}">${warnings.map(x=>'⚠️ '+escapeHtml(x)).join('<br>')}</div>`;
   const bodyHtml = item.collapsed
     ? `<div class="item-collapsed-summary">${escapeHtml(typeIcon(item.type)+' '+shortLabel(item))} ／ ¥${toJPY(item.amount,item.currency).toLocaleString()}${item.currency!=='JPY' ? ' ('+item.amount+' '+item.currency+')' : ''}</div>`
     : `<div class="item-detail">${renderItemDetail(plan,item)}</div>
@@ -788,6 +810,8 @@ function updateField(planId, itemId, path, value){
   if(!item) return;
   if(path==='amount') value = parseFloat(value)||0;
   setNested(item, path, value);
+  refreshItemWarnings(planId, itemId);
+  refreshPlanTotal(planId);
   scheduleSave();
   maybeRefreshCompare();
 }
@@ -884,19 +908,40 @@ function setGranularity(g){
 /* ========================================================================
    Events extraction
    ======================================================================== */
-function legEvents(sec, labelBase, cat){
+function placeArrow(from, to){
+  return `${from||'(出発地未設定)'} → ${to||'(到着地未設定)'}`;
+}
+function getHomePlace(item){
+  if(!item.outbound) return '';
+  return item.outbound.connection==='direct'
+    ? item.outbound.direct.depPlace
+    : item.outbound.transit.leg1.depPlace;
+}
+function legEvents(sec, titleBase, cat, arrivalPlace){
   if(!sec) return [];
   const evs = [];
   if(sec.connection==='direct'){
     if(sec.direct.depDatetime && sec.direct.arrDatetime){
-      evs.push({start:sec.direct.depDatetime, end:sec.direct.arrDatetime, label:`${labelBase}${sec.direct.depPlace?'('+sec.direct.depPlace+')':''}`, cat});
+      evs.push({
+        start:sec.direct.depDatetime, end:sec.direct.arrDatetime, cat,
+        title:titleBase,
+        route:placeArrow(sec.direct.depPlace, arrivalPlace)
+      });
     }
   } else {
     if(sec.transit.leg1.depDatetime && sec.transit.leg1.transitArrDatetime){
-      evs.push({start:sec.transit.leg1.depDatetime, end:sec.transit.leg1.transitArrDatetime, label:`${labelBase} 1便目`, cat});
+      evs.push({
+        start:sec.transit.leg1.depDatetime, end:sec.transit.leg1.transitArrDatetime, cat,
+        title:titleBase+' 1便目',
+        route:placeArrow(sec.transit.leg1.depPlace, sec.transit.leg1.transitPlace)
+      });
     }
     if(sec.transit.leg2.transitDepDatetime && sec.transit.leg2.arrDatetime){
-      evs.push({start:sec.transit.leg2.transitDepDatetime, end:sec.transit.leg2.arrDatetime, label:`${labelBase} 2便目`, cat});
+      evs.push({
+        start:sec.transit.leg2.transitDepDatetime, end:sec.transit.leg2.arrDatetime, cat,
+        title:titleBase+' 2便目',
+        route:placeArrow(sec.transit.leg1.transitPlace, arrivalPlace)
+      });
     }
   }
   return evs;
@@ -907,18 +952,18 @@ function getItemEvents(item){
   const meta = ITEM_TYPE_META[item.type] || {};
   if(meta.kind==='transport'){
     const icon = typeIcon(item.type);
-    events = events.concat(legEvents(item.outbound, `${icon}${item.company?(' '+item.company):''} 往路`, cat));
+    events = events.concat(legEvents(item.outbound, `${icon}${item.company?(' '+item.company):''} 往路`, cat, item.destination));
     if(item.tripType==='roundtrip' && item.return){
-      events = events.concat(legEvents(item.return, `${icon}${item.company?(' '+item.company):''} 復路`, cat));
+      events = events.concat(legEvents(item.return, `${icon}${item.company?(' '+item.company):''} 復路`, cat, getHomePlace(item)));
     }
   } else if(meta.kind==='hotel'){
     if(item.checkin && item.checkout){
-      events.push({start:item.checkin, end:item.checkout, label:`🏨 ${item.hotelName||'ホテル'}`, cat});
+      events.push({start:item.checkin, end:item.checkout, cat, title:`🏨 ${item.hotelName||'ホテル'}`, route:''});
     }
   } else if(meta.kind==='other'){
     if(item.startDatetime){
       const end = (item.endDatetime && item.endDatetime > item.startDatetime) ? item.endDatetime : addHour(item.startDatetime);
-      events.push({start:item.startDatetime, end, label:`✨ ${item.content||'その他'}`, cat});
+      events.push({start:item.startDatetime, end, cat, title:`✨ ${item.content||'その他'}`, route:''});
     }
   }
   return events.filter(e=>e.start && e.end);
@@ -971,8 +1016,8 @@ function itemDetailLines(item){
   const meta = ITEM_TYPE_META[item.type] || {};
   if(meta.kind==='transport'){
     lines.push(`${item.tripType==='roundtrip'?'往復':'片道'} / ${item.company||'(会社名未設定)'}`);
-    lines.push(...legLines(item.outbound,'往路'));
-    if(item.tripType==='roundtrip' && item.return) lines.push(...legLines(item.return,'復路'));
+    lines.push(...legLines(item.outbound,'往路', item.destination));
+    if(item.tripType==='roundtrip' && item.return) lines.push(...legLines(item.return,'復路', getHomePlace(item)));
     lines.push(`最終目的地: ${item.destination||'-'}`);
   } else if(meta.kind==='hotel'){
     lines.push(`${item.hotelName||'(ホテル名未設定)'}`);
@@ -984,14 +1029,15 @@ function itemDetailLines(item){
   if(item.note) lines.push(`備考: ${item.note}`);
   return lines;
 }
-function legLines(sec, label){
+function legLines(sec, label, arrivalPlace){
   if(!sec) return [];
+  const arr = arrivalPlace || '(到着地未設定)';
   if(sec.connection==='direct'){
-    return [`${label}(直行): ${sec.direct.depPlace||'-'} ${sec.direct.depDatetime||'-'} → ${sec.direct.arrDatetime||'-'}`];
+    return [`${label}(直行): ${sec.direct.depPlace||'-'} → ${arr} ｜ ${sec.direct.depDatetime||'-'} → ${sec.direct.arrDatetime||'-'}`];
   }
   return [
-    `${label}(乗継)1便目: ${sec.transit.leg1.depPlace||'-'} ${sec.transit.leg1.depDatetime||'-'} → 経由地(${sec.transit.leg1.transitPlace||'-'}) ${sec.transit.leg1.transitArrDatetime||'-'}`,
-    `${label}(乗継)2便目: 経由地発 ${sec.transit.leg2.transitDepDatetime||'-'} → 到着 ${sec.transit.leg2.arrDatetime||'-'}`
+    `${label}(乗継)1便目: ${sec.transit.leg1.depPlace||'-'} → ${sec.transit.leg1.transitPlace||'(経由地未設定)'} ｜ ${sec.transit.leg1.depDatetime||'-'} → ${sec.transit.leg1.transitArrDatetime||'-'}`,
+    `${label}(乗継)2便目: ${sec.transit.leg1.transitPlace||'(経由地未設定)'} → ${arr} ｜ ${sec.transit.leg2.transitDepDatetime||'-'} → ${sec.transit.leg2.arrDatetime||'-'}`
   ];
 }
 function renderTable(filteredPlans){
@@ -1110,6 +1156,17 @@ function buildTimelineRowsDaily(filteredPlans, planEventsMap, startVal, endVal){
   }
   return rows;
 }
+const WEEKDAY_JA = ['日','月','火','水','木','金','土'];
+function tlBlockHtml(e, showTitle, timeText){
+  if(!showTitle){
+    return `<div class="tl-block cell-${e.cat} tl-block-continue"></div>`;
+  }
+  return `<div class="tl-block cell-${e.cat}">
+    <div class="tl-block-title">${escapeHtml(e.title)}</div>
+    ${e.route ? `<div class="tl-block-route">${escapeHtml(e.route)}</div>` : ''}
+    ${timeText ? `<div class="tl-block-time">${escapeHtml(timeText)}</div>` : ''}
+  </div>`;
+}
 function renderTimelineTable(filteredPlans, rows){
   const container = document.getElementById('timelineTableWrap');
   if(!filteredPlans.length){ container.innerHTML = '<div class="empty-msg">対象のプランがありません。</div>'; return; }
@@ -1120,14 +1177,16 @@ function renderTimelineTable(filteredPlans, rows){
   html += '</tr></thead><tbody>';
   rows.forEach(row=>{
     const d = row.dt;
-    html += `<tr><td class="tl-time-col">${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:00</td>`;
+    const isDayStart = d.getHours()===0;
+    const dateLabel = `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}(${WEEKDAY_JA[d.getDay()]})`;
+    html += `<tr class="${isDayStart?'day-start':''}"><td class="tl-time-col">${isDayStart?`<strong>${dateLabel}</strong> `:''}${pad(d.getHours())}:00</td>`;
     filteredPlans.forEach(p=>{
       const evs = row.cells[p.id]||[];
       if(!evs.length){ html += '<td class="tl-cell"></td>'; return; }
       const inner = evs.map(e=>{
         const isStart = e.startD.getFullYear()===d.getFullYear() && e.startD.getMonth()===d.getMonth() &&
                          e.startD.getDate()===d.getDate() && e.startD.getHours()===d.getHours();
-        return `<div class="tl-block cell-${e.cat}">${isStart?escapeHtml(e.label):''}</div>`;
+        return tlBlockHtml(e, isStart);
       }).join('');
       html += `<td class="tl-cell">${inner}</td>`;
     });
@@ -1147,11 +1206,12 @@ function renderTimelineTableDaily(filteredPlans, rows){
   html += '</tr></thead><tbody>';
   rows.forEach(row=>{
     const d = row.dt;
-    html += `<tr><td class="tl-time-col">${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}</td>`;
+    const dateLabel = `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}(${WEEKDAY_JA[d.getDay()]})`;
+    html += `<tr><td class="tl-time-col"><strong>${dateLabel}</strong></td>`;
     filteredPlans.forEach(p=>{
       const evs = row.cells[p.id]||[];
       if(!evs.length){ html += '<td class="tl-cell"></td>'; return; }
-      const inner = evs.map(e=> `<div class="tl-block cell-${e.cat}">${escapeHtml(e.label)} (${timeFmt(e.start)}-${timeFmt(e.end)})</div>`).join('');
+      const inner = evs.map(e=> tlBlockHtml(e, true, `${timeFmt(e.start)} - ${timeFmt(e.end)}`)).join('');
       html += `<td class="tl-cell">${inner}</td>`;
     });
     html += '</tr>';
